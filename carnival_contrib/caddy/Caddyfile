@@ -1,0 +1,12 @@
+(common) {
+    errors
+    log / stdout "[{host}] {remote} - {user} \"{method} {uri} {proto}\" {status} {size} {latency}"
+    tls {{caddyfile_template_tls_email}}
+    ratelimit * / 10 10 second
+    timeouts 5m
+    gzip
+}
+
+*:80 {
+    import common
+}
