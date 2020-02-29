@@ -13,12 +13,10 @@ class Install(Step):
         caddyfile_template_tls_email="user@example.com"
     ):
         """
-        Hello world
-
-        :param caddyfile_template:
-        :param caddy_systemd_service_template:
-        :param caddyfile_template_tls_email:
-        :return:
+        :param caddyfile_template: Caddyfile template path
+        :param caddy_systemd_service_template: caddy.service systemd file template path
+        :param caddyfile_template_tls_email: tls email
+        :return: None
         """
 
         if not cmd.fs.is_file_exists("/usr/local/bin/caddy"):
