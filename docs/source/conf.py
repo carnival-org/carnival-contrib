@@ -2,7 +2,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath('.'))
 
-project = 'carnival contrib'
+project = 'carnival_contrib'
 copyright = '2020, a1fred'
 author = 'a1fred'
 
