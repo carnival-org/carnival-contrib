@@ -8,12 +8,19 @@ class Install(Step):
     """
 
     def run(
-        self,
-        dns_domain: str,
-        caddyfile_template: str = 'carnival_contrib/caddy/Caddyfile',
+        self, caddyfile_template: str = 'carnival_contrib/caddy/Caddyfile',
         caddy_systemd_service_template: str = 'carnival_contrib/caddy/caddy.service',
-        caddyfile_template_tls_email="user@example.com",
+        caddyfile_template_tls_email="user@example.com"
     ):
+        """
+        Hello world
+
+        :param caddyfile_template:
+        :param caddy_systemd_service_template:
+        :param caddyfile_template_tls_email:
+        :return:
+        """
+
         if not cmd.fs.is_file_exists("/usr/local/bin/caddy"):
             log(f"Installing caddy")
             cmd.cli.run("curl https://getcaddy.com | bash -s personal http.grpc,http.ratelimit,http.realip", pty=True)
@@ -27,7 +34,6 @@ class Install(Step):
         # if not cmd.transfer.is_file_exists("/etc/caddy/Caddyfile"):
         cmd.transfer.put_template(
             caddyfile_template, "/etc/caddy/Caddyfile",
-            dns_domain=dns_domain,
             caddyfile_template_tls_email=caddyfile_template_tls_email
         )
 
