@@ -19,11 +19,6 @@ Welcome to carnival_contrib's documentation!
 
    Carnival docs <https://carnival.readthedocs.io/projects/contrib/en/latest/>
 
-See also
-=============
-`Carnival docs <https://carnival.readthedocs.io/projects/contrib/en/latest/>`_.
-
-
 
 Indices and tables
 ==================
