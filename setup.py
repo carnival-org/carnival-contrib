@@ -1,11 +1,11 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages  # type:ignore
 
 
 requirements = [
     'carnival>=0.7,<1.0',
 ]
 
-VERSION = "0.1"
+VERSION = "0.2"
 
 setup(
     name='carnival_contrib',

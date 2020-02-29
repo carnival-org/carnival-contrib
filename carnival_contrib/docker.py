@@ -17,7 +17,6 @@ class CeInstallUbuntu(Step):
 
         log(f"Installing {pkgname}...")
 
-        cmd.cli.run("sudo apt-get remove docker docker-engine docker.io")
         cmd.cli.run("sudo apt-get update")
         cmd.cli.run("sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common")
         cmd.cli.run("curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -", pty=True)

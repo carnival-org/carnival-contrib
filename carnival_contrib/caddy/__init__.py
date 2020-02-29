@@ -11,17 +11,17 @@ class Install(Step):
         self,
         dns_domain: str,
         caddyfile_template: str = 'carnival_contrib/caddy/Caddyfile',
-        caddy_systemd_service: str = 'carnival_contrib/caddy/caddy.service',
+        caddy_systemd_service_template: str = 'carnival_contrib/caddy/caddy.service',
         caddyfile_template_tls_email="user@example.com",
     ):
-        if not cmd.transfer.is_file_exists("/usr/local/bin/caddy"):
+        if not cmd.fs.is_file_exists("/usr/local/bin/caddy"):
             log(f"Installing caddy")
             cmd.cli.run("curl https://getcaddy.com | bash -s personal http.grpc,http.ratelimit,http.realip", pty=True)
 
-        if not cmd.transfer.is_file_exists("/etc/systemd/system/caddy.service"):
+        if not cmd.fs.is_file_exists("/etc/systemd/system/caddy.service"):
             log(f"Setting up caddy")
-            cmd.transfer.put_template("caddy.service", "/etc/systemd/system/caddy.service")
-            cmd.cli.mkdirs("/etc/caddy", "/etc/ssl/caddy")
+            cmd.transfer.put_template(caddy_systemd_service_template, "/etc/systemd/system/caddy.service")
+            cmd.fs.mkdirs("/etc/caddy", "/etc/ssl/caddy")
             cmd.systemd.daemon_reload()
 
         # if not cmd.transfer.is_file_exists("/etc/caddy/Caddyfile"):

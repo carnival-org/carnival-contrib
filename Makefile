@@ -1,24 +1,24 @@
-.PHONY: dist clean qa test dev nodev todos install docs
+.PHONY: dist clean qa test todos install docs test_deps
 
 clean:
 	rm -rf carnival_contrib.egg-info dist build
 
 test_deps:
 	pip3 install -qr requirements_dev.txt
-	pip3 install -qe .
+	python setup.py develop
 
 qa:
 	flake8 .
-	mypy --warn-unused-ignores --package carnival
+	mypy --warn-unused-ignores --package carnival_contrib
 
-test: qa docs
-	pytest -x --cov-report term --cov=carnival -vv tests/
+test: test_deps qa
+	pytest -x --cov-report term --cov=carnival_contrib -vv tests/
 
 todos:
-	grep -r TODO carnival
+	grep -r TODO carnival_contrib
 
 install:
-	python3 setup.py install -f
+	pip3 install --force-reinstall .
 
 docs:
 	pip install sphinx
