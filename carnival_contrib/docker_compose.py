@@ -30,8 +30,6 @@ class DeployComposeService(Step):
         cmd.cli.run(f"mkdir -p {app_dir}")
         cmd.systemd.start("docker")
 
-        assert 'docker-compose.yml' in template_files, "No compose files"
-
         for dest in template_files:
             if isinstance(dest, str):
                 source_file = dest
