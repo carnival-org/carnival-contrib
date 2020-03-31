@@ -46,7 +46,7 @@ class ComposeInstall(Step):
 
 
 class DockerUploadImageFile(Step):
-    def run(self, docker_image_path, dest_dir='/tmp/', rm_after_load=True):
+    def run(self, docker_image_path, dest_dir='/tmp/', rm_after_load=False):
         """
         Upload docker image file and load into docker daemon, saved with `docker save image -o image.tar`
 
