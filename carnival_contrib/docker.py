@@ -1,3 +1,5 @@
+import os
+
 from carnival import Step
 from carnival import cmd
 from carnival.utils import log
@@ -6,7 +8,10 @@ from carnival.utils import log
 class CeInstallUbuntu(Step):
     def run(self, docker_version=None):
         """
-        Returns true if installed, false if was already installed
+        Install docker-ce on ubuntu
+
+        :param docker_version: docker-ce version to install
+        :return: True if installed, False if was already installed
         """
         # https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
         from carnival.cmd import apt
@@ -28,7 +33,35 @@ class CeInstallUbuntu(Step):
 
 class ComposeInstall(Step):
     def run(self, docker_compose_version="1.25.1", docker_compose_dest="/usr/local/bin/docker-compose"):
+        """
+        Install docker-compose
+
+        :param docker_compose_version: compose version
+        :param docker_compose_dest: install directory
+        """
         log(f"Installing compose...")
         download_link = f"https://github.com/docker/compose/releases/download/{docker_compose_version}/docker-compose-`uname -s`-`uname -m`"
         cmd.cli.run(f"sudo curl -sL {download_link} -o {docker_compose_dest}")
         cmd.cli.run(f"sudo chmod a+x {docker_compose_dest}")
+
+
+class DockerUploadImageFile(Step):
+    def run(self, docker_image_path, dest_dir='/tmp/', rm_after_load=True):
+        """
+        Upload docker image file and load into docker daemon, saved with `docker save image -o image.tar`
+
+        :param docker_image_path: Docker image path
+        :param dest_dir: Destination directory
+        :param rm_after_load: Remove image after load to docker daemon
+        """
+        if not dest_dir.endswith("/"):
+            dest_dir += "/"
+
+        image_file_name = os.path.basename(docker_image_path)
+
+        cmd.systemd.start("docker")
+        cmd.transfer.rsync(docker_image_path, dest_dir)
+        cmd.cli.pty(f"cd {dest_dir}; docker load -i {image_file_name}")
+
+        if rm_after_load:
+            cmd.cli.pty(f"rm -rf {dest_dir}{image_file_name}")

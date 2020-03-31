@@ -3,16 +3,14 @@ from carnival import cmd, log
 
 
 class Install(Step):
-    """
-    Install caddy, set up systemd, put configuration
-    """
-
     def run(
         self, caddyfile_template: str = 'carnival_contrib/caddy/Caddyfile',
         caddy_systemd_service_template: str = 'carnival_contrib/caddy/caddy.service',
         caddyfile_template_tls_email="user@example.com"
     ):
         """
+        Install caddy, set up systemd, put configuration
+
         :param caddyfile_template: Caddyfile template path
         :param caddy_systemd_service_template: caddy.service systemd file template path
         :param caddyfile_template_tls_email: tls email
