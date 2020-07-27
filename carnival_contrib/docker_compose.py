@@ -13,7 +13,7 @@ class DeployComposeService(Step):
             template_files: List[Union[str, Tuple[str, str]]],
             template_context: Dict[str, Any],
 
-            ignore_pull_failures: False,
+            ignore_pull_failures = False,
             scale=None,
             start_service=True,
     ):
