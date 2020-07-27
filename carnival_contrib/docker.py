@@ -46,7 +46,7 @@ class ComposeInstall(Step):
 
 
 class DockerUploadImageFile(Step):
-    def run(self, docker_image_path, dest_dir='/tmp/', rm_after_load=False):
+    def run(self, docker_image_path, dest_dir='/tmp/', rm_after_load=False, rsync_opts=None):
         """
         Upload docker image file and load into docker daemon, saved with `docker save image -o image.tar`
 
@@ -60,7 +60,7 @@ class DockerUploadImageFile(Step):
         image_file_name = os.path.basename(docker_image_path)
 
         cmd.systemd.start("docker")
-        cmd.transfer.rsync(docker_image_path, dest_dir)
+        cmd.transfer.rsync(docker_image_path, dest_dir, **rsync_opts or {})
         cmd.cli.pty(f"cd {dest_dir}; docker load -i {image_file_name}")
 
         if rm_after_load:
