@@ -13,7 +13,6 @@ class DeployComposeService(Step):
             template_files: List[Union[str, Tuple[str, str]]],
             template_context: Dict[str, Any],
 
-            ignore_pull_failures = False,
             scale=None,
             start_service=True,
     ):
@@ -23,7 +22,6 @@ class DeployComposeService(Step):
         :param app_dir: Application remote destination directory
         :param template_files: List of templates to upload. Can be file name or tuple (source_file, dest_file_name)
         :param template_context: template files context
-        :param ignore_pull_failures: use --ignore-pull-failures on pull
         :param scale: scale service when start. for example 'webapp=2 redis=2'
         :param start_service: start service after upload
         """
@@ -45,11 +43,6 @@ class DeployComposeService(Step):
             )
 
         cmd.cli.pty(f"cd {app_dir}; docker-compose rm -f")
-
-        if ignore_pull_failures:
-            cmd.cli.pty(f"cd {app_dir}; docker-compose pull --ignore-pull-failures || true")
-        else:
-            cmd.cli.pty(f"cd {app_dir}; docker-compose pull")
 
         if start_service:
             if scale:
