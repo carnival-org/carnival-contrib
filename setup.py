@@ -1,11 +1,10 @@
-from setuptools import setup, find_packages  # type:ignore
-
+from setuptools import find_packages, setup  # type:ignore
 
 requirements = [
-    'carnival>=0.7,<1.0',
+    'carnival>=0.7,<2.0',
 ]
 
-VERSION = "0.5.2"
+VERSION = "1.0"
 
 setup(
     name='carnival_contrib',
@@ -22,7 +21,10 @@ setup(
         'Operating System :: POSIX :: Linux',
         'Operating System :: MacOS :: MacOS X',
         'Development Status :: 4 - Beta',
-        'Programming Language :: Python :: 3',
+        'Programming Language :: Python :: 3.6',
+        'Programming Language :: Python :: 3.7',
+        'Programming Language :: Python :: 3.8',
+        'Programming Language :: Python :: 3.9',
     ],
     install_requires=requirements,
     test_suite="tests",
