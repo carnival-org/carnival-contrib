@@ -1,5 +1,5 @@
 import os
-from typing import List, Dict, Any, Union, Tuple
+from typing import List, Dict, Any, Optional, Union, Tuple
 
 from carnival import Step
 from carnival import cmd
@@ -13,7 +13,7 @@ class DeployComposeService(Step):
             template_files: List[Union[str, Tuple[str, str]]],
             template_context: Dict[str, Any],
 
-            scale=None,
+            scale: Optional[Dict[str, int]] = None,
             start_service=True,
     ):
         """
@@ -46,10 +46,10 @@ class DeployComposeService(Step):
 
         if start_service:
             if scale:
-                scale_str = f" --scale {scale}"
+                scale_str = " ".join([f" --scale {service_name}={count}" for service_name, count in scale.items()])
             else:
                 scale_str = ""
-            cmd.cli.pty(f"cd {app_dir}; docker-compose up -d --remove-orphans{scale_str}")
+            cmd.cli.pty(f"cd {app_dir}; docker-compose up -d --remove-orphans {scale_str}")
 
 
 class DockerRestartService(Step):

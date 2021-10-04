@@ -42,12 +42,12 @@ class ComposeInstall(Step):
         from carnival.cmd import fs
 
         if not fs.is_file_exists(docker_compose_dest) or force:
-            log(f"Installing docker-compose...")
-            download_link = f"https://github.com/docker/compose/releases/download/{docker_compose_version}/docker-compose-`uname -s`-`uname -m`"
-            cmd.cli.run(f"sudo curl -sL {download_link} -o {docker_compose_dest}")
+            log("Installing docker-compose...")
+            link = f"https://github.com/docker/compose/releases/download/{docker_compose_version}/docker-compose-`uname -s`-`uname -m`"
+            cmd.cli.run(f"sudo curl -sL {link} -o {docker_compose_dest}")
             cmd.cli.run(f"sudo chmod a+x {docker_compose_dest}")
         else:
-            log(f"docker-compose already installed...")
+            log("docker-compose already installed...")
 
 
 class DockerUploadImageFile(Step):

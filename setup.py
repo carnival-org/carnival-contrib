@@ -4,7 +4,7 @@ requirements = [
     'carnival>=0.7,<2.0',
 ]
 
-VERSION = "1.0"
+VERSION = "1.1"
 
 setup(
     name='carnival_contrib',

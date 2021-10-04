@@ -18,11 +18,11 @@ class Install(Step):
         """
 
         if not cmd.fs.is_file_exists("/usr/local/bin/caddy"):
-            log(f"Installing caddy")
+            log("Installing caddy")
             cmd.cli.run("curl https://getcaddy.com | bash -s personal http.grpc,http.ratelimit,http.realip", pty=True)
 
         if not cmd.fs.is_file_exists("/etc/systemd/system/caddy.service"):
-            log(f"Setting up caddy")
+            log("Setting up caddy")
             cmd.transfer.put_template(caddy_systemd_service_template, "/etc/systemd/system/caddy.service")
             cmd.fs.mkdirs("/etc/caddy", "/etc/ssl/caddy")
             cmd.systemd.daemon_reload()
