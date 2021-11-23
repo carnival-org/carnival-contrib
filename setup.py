@@ -1,7 +1,7 @@
 from setuptools import find_packages, setup  # type:ignore
 
 requirements = [
-    'carnival>=0.7,<2.0',
+    'carnival==2.0.0',
 ]
 
 VERSION = "1.1"
