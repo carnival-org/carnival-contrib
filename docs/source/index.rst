@@ -5,8 +5,12 @@ Carnival contrib
    :maxdepth: 2
    :caption: Contents:
 
-   docker.rst
+   apt.rst
    caddy.rst
+   docker_compose.rst
+   docker.rst
+   ssh.rst
+   systemd.rst
 
 .. toctree::
    :maxdepth: 2

@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "carnival-contrib"
+version = "3.0.0"
+description = "Carnival community receipts"
+authors = ["Dmirty Simonov <demalf@gmail.com>"]
+license = "MIT"
+include = ["carnival/py.typed"]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+carnival = ">=3.0.0<4"
+
+[tool.poetry.dev-dependencies]
+flake8 = "^4.0.1"
+mypy = "^0.910"
+Sphinx = "^4.3.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

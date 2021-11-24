@@ -1,9 +1,9 @@
 ############################
-Caddy
+Apt
 ############################
 
 
-.. automodule:: carnival_contrib.caddy
+.. automodule:: carnival_contrib.apt
     :members:
     :undoc-members: run
     :special-members: __init__

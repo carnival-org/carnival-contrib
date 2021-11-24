@@ -1,6 +1,0 @@
-pytest
-pytest-cov
-pytest-mock
-pytest-cases
-flake8
-mypy

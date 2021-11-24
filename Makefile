@@ -1,32 +1,26 @@
-.PHONY: dist clean qa test todos install docs test_deps
-
+.PHONY: clean
 clean:
-	rm -rf carnival_contrib.egg-info dist build
+	rm -rf dist .mypy_cache .pytest_cache docs/build/*
 
-test_deps:
-	pip3 install -qr requirements_dev.txt
-	python setup.py develop
-
+.PHONY: qa
 qa:
-	flake8 .
-	mypy --warn-unused-ignores --package carnival_contrib
+	poetry run flake8 .
+	poetry run mypy --package carnival_contrib
 
-test: test_deps qa
-	pytest -x --cov-report term --cov=carnival_contrib -vv tests/
+.PHONY: test
+test: qa
+	poetry run pytest -x --cov-report term --cov=carnival_contrib -vv tests/
 
+.PHONY: todos
 todos:
 	grep -r TODO carnival_contrib
 
-install:
-	pip3 install --force-reinstall .
-
+.PHONY: docs
 docs:
-	pip install sphinx
-	make -C docs html
+	poetry run make -C docs html
 
+.PHONY: dist
 dist:
-	python3 setup.py sdist
-	twine upload dist/*
-	git tag `cat setup.py | grep VERSION | grep -v version | cut -d= -f2 | tr -d "[:space:]"`
+	poetry publish --build
+	git tag `poetry version -s`
 	git push --tags
-
