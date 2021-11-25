@@ -10,7 +10,6 @@ extensions = [
     'sphinx.ext.autodoc',
 ]
 autodoc_mock_imports = [
-    'carnival',
 ]
 
 master_doc = 'index'
