@@ -6,6 +6,10 @@ project = 'carnival contrib'
 copyright = '2020, a1fred'
 author = 'a1fred'
 
+html_theme_options = {
+    "page_width": "1024px",
+}
+
 extensions = [
     'sphinx.ext.autodoc',
 ]
