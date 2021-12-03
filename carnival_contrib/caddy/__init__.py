@@ -1,6 +1,6 @@
 from carnival import Step
 from carnival import Connection
-from carnival import cmd, log
+from carnival import cmd
 
 from carnival_contrib import systemd
 
@@ -25,11 +25,11 @@ class Install(Step):
 
     def run(self, c: Connection) -> None:
         if not cmd.fs.is_file_exists(c, "/usr/local/bin/caddy"):
-            log("Installing caddy", host=c.host)
+            print("Installing caddy")
             cmd.cli.run(c, "curl https://getcaddy.com | bash -s personal http.grpc,http.ratelimit,http.realip")
 
         if not cmd.fs.is_file_exists(c, "/etc/systemd/system/caddy.service"):
-            log("Setting up caddy", host=c.host)
+            print("Setting up caddy")
             cmd.transfer.put_template(c, self.caddy_systemd_service_template, "/etc/systemd/system/caddy.service")
             cmd.fs.mkdirs(c, "/etc/caddy", "/etc/ssl/caddy")
             systemd.DaemonReload().run(c=c)

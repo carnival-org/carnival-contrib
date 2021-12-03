@@ -10,3 +10,4 @@ docs/_build/
 build
 dist
 docs/build
+.vscode

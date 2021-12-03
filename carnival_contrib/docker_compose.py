@@ -4,32 +4,27 @@ import typing
 from carnival import Connection
 from carnival import Step
 from carnival import cmd
-from carnival.exceptions import StepValidationError
-from carnival.templates import render
+from carnival.steps import validators
 
 from carnival_contrib import systemd
 
 
-class Deploy(Step):
+class UploadService(Step):
     """
-    Upload docker-compose service and related files.
+    Залить docker-compose сервис и запустить
     """
+
     def __init__(
             self,
             app_dir: str,
 
             template_files: typing.List[typing.Union[str, typing.Tuple[str, str]]],
             template_context: typing.Dict[str, typing.Any],
-
-            scale: typing.Optional[typing.Dict[str, int]] = None,
-            start_service: bool = True,
     ):
         """
-        :param app_dir: Application remote destination directory
-        :param template_files: List of templates to upload. Can be file name or tuple (source_file, dest_file_name)
-        :param template_context: template files context
-        :param scale: scale service when start. for example 'webapp=2 redis=2'
-        :param start_service: start service after upload
+        :param app_dir: Путь до папки назначения
+        :param template_files: Список jinja2-шаблонов. Может быть списком файлов или кортежей (source_file, dest_file_name)
+        :param template_context: Контекст шаблонов, один на все шаблоны
         """
         self.app_dir = app_dir
 
@@ -46,19 +41,16 @@ class Deploy(Step):
             self.template_files.append((source_file, dest_fname))
 
         self.template_context = template_context
-        self.scale = scale
-        self.start_service = start_service
 
-    def validate(self, c: Connection) -> None:
-        if not cmd.cli.is_cmd_exist(c, "docker"):
-            raise StepValidationError("'docker' is required")
+    def get_name(self) -> str:
+        return f"{super().get_name()}({self.app_dir})"
 
-        if not cmd.cli.is_cmd_exist(c, "docker-compose"):
-            raise StepValidationError("'docker-compose' is required")
-
-        # Validate template rendering
-        for source_file, _ in self.template_files:
-            render(source_file, **self.template_context)
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            *[validators.TemplateValidator(source_file, self.template_context) for source_file, _ in self.template_files],
+            validators.CommandRequiredValidator('docker'),
+            validators.CommandRequiredValidator('docker-compose'),
+        ]
 
     def run(self, c: Connection) -> typing.Any:
         systemd.Start("docker").run(c=c)
@@ -72,14 +64,50 @@ class Deploy(Step):
                 **self.template_context
             )
 
-        cmd.cli.run(c, f"cd {self.app_dir}; docker-compose rm -f")
+        cmd.cli.run(c, "docker-compose rm -f", cwd=self.app_dir, hide=True)
 
-        if self.start_service:
-            if self.scale:
-                scale_str = " ".join([f" --scale {service_name}={count}" for service_name, count in self.scale.items()])
-            else:
-                scale_str = ""
-            cmd.cli.run(c, f"cd {self.app_dir}; docker-compose up -d --remove-orphans {scale_str}")
+
+class Up(Step):
+    def __init__(
+        self,
+        app_dir: str,
+        scale: typing.Optional[typing.Dict[str, int]] = None,
+        only: typing.Optional[typing.List[str]] = None
+    ):
+        """
+        :param app_dir: Путь до папки назначения
+        :param scale: Масштабирование сервисов при запуске, не используется если `None`
+        :param only: Запустить только указанные сервисы, не используется если `None`
+        """
+        self.app_dir = app_dir
+        self.scale = scale
+        self.only = only
+
+    def get_name(self) -> str:
+        return f"{super().get_name()}({self.app_dir})"
+
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.InlineValidator(
+                if_err_true_fn=lambda c: self.only == [],
+                error_message="'only' must not be empty list, use None to disable",
+            ),
+            validators.CommandRequiredValidator('docker'),
+            validators.CommandRequiredValidator('docker-compose'),
+        ]
+
+    def run(self, c: Connection) -> typing.Any:
+        systemd.Start("docker").run(c=c)
+
+        onlystr = ""
+        if self.only is not None:
+            onlystr = " ".join(self.only)
+
+        if self.scale:
+            scale_str = " ".join([f" --scale {service_name}={count}" for service_name, count in self.scale.items()])
+        else:
+            scale_str = ""
+        c.run(f"docker-compose up -d --remove-orphans {onlystr} {scale_str}", cwd=self.app_dir)
 
 
 class Ps(Step):
@@ -89,18 +117,23 @@ class Ps(Step):
 
     subcommand = "ps"
 
-    def __init__(self, app_dir: str):
+    def __init__(self, app_dir: str, flags: str = ""):
         """
         :param app_dir: Application remote directory
         """
         self.app_dir = app_dir
+        self.flags = flags
 
-    def validate(self, c: "Connection") -> None:
-        if not cmd.cli.is_cmd_exist(c, "docker-compose"):
-            raise StepValidationError("'docker-compose' is required")
+    def get_name(self) -> str:
+        return f"{super().get_name()}({self.app_dir})"
+
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.CommandRequiredValidator('docker-compose'),
+        ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"cd {self.app_dir}; docker-compose {self.subcommand}")
+        cmd.cli.run(c, f"docker-compose {self.subcommand} {self.flags}", cwd=self.app_dir)
 
 
 class Restart(Ps):
@@ -126,15 +159,20 @@ class RestartServices(Step):
         self.services = " ".join(services)
         self.services = self.services.strip()
 
-    def validate(self, c: "Connection") -> None:
-        if not self.services:
-            raise StepValidationError("'services' must not be empty")
+    def get_name(self) -> str:
+        return f"{super().get_name()}(services='{self.services}')"
 
-        if not cmd.cli.is_cmd_exist(c, "docker-compose"):
-            raise StepValidationError("'docker-compose' is required")
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.InlineValidator(
+                if_err_true_fn=lambda c: not self.services,
+                error_message="'services' must not be empty",
+            ),
+            validators.CommandRequiredValidator('docker-compose'),
+        ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"cd {self.app_dir}; docker-compose {self.subcommand} {self.services}")
+        cmd.cli.run(c, f"docker-compose {self.subcommand} {self.services}", cwd=self.app_dir)
 
 
 class Stop(Ps):
@@ -163,12 +201,16 @@ class Logs(Step):
         self.app_dir = app_dir
         self.tail = tail
 
-    def validate(self, c: "Connection") -> None:
-        if not cmd.cli.is_cmd_exist(c, "docker-compose"):
-            raise StepValidationError("'docker-compose' is required")
+    def get_name(self) -> str:
+        return f"{super().get_name()}({self.app_dir})"
+
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.CommandRequiredValidator('docker-compose'),
+        ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"cd {self.app_dir}; docker-compose logs -f --tail={self.tail}")
+        cmd.cli.run(c, f"docker-compose logs -f --tail={self.tail}", cwd=self.app_dir, hide=False)
 
 
 class LogsServices(Step):
@@ -185,12 +227,17 @@ class LogsServices(Step):
         self.services = self.services.strip()
         self.tail = tail
 
-    def validate(self, c: "Connection") -> None:
-        if not self.services:
-            raise StepValidationError("'services' must not be empty")
+    def get_name(self) -> str:
+        return f"{super().get_name()}(services='{self.services}')"
 
-        if not cmd.cli.is_cmd_exist(c, "docker-compose"):
-            raise StepValidationError("'docker-compose' is required")
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.InlineValidator(
+                if_err_true_fn=lambda c: not self.services,
+                error_message="'services' must not be empty",
+            ),
+            validators.CommandRequiredValidator('docker-compose'),
+        ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"cd {self.app_dir}; docker-compose logs -f --tail={self.tail} {self.services}")
+        cmd.cli.run(c, f"docker-compose logs -f --tail={self.tail} {self.services}", cwd=self.app_dir)

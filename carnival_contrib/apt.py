@@ -1,9 +1,8 @@
 import typing
 
 from carnival import cmd, Step
-from carnival.utils import log
 from carnival import Connection
-from carnival.exceptions import StepValidationError
+from carnival.steps import validators
 
 
 class GetPackageVersions(Step):
@@ -14,9 +13,10 @@ class GetPackageVersions(Step):
     def __init__(self, pkgname: str):
         self.pkgname = pkgname
 
-    def validate(self, c: Connection) -> None:
-        if not cmd.cli.is_cmd_exist(c, "apt-cache"):
-            raise StepValidationError("'apt-cache' is required")
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.CommandRequiredValidator('apt-cache'),
+        ]
 
     def run(self, c: Connection) -> typing.List[str]:
         versions = []
@@ -40,9 +40,10 @@ class GetInstalledPackageVersion(Step):
     def __init__(self, pkgname: str):
         self.pkgname = pkgname
 
-    def validate(self, c: Connection) -> None:
-        if not cmd.cli.is_cmd_exist(c, "dpkg"):
-            raise StepValidationError("'dpkg' is required")
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.CommandRequiredValidator('dpkg'),
+        ]
 
     def run(self, c: Connection) -> typing.Optional[str]:
         """
@@ -70,8 +71,8 @@ class IsPackageInstalled(Step):
         self.version = version
         self.get_installed_package_version = GetInstalledPackageVersion(pkgname=self.pkgname)
 
-    def validate(self, c: Connection) -> None:
-        self.get_installed_package_version.validate(c=c)
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return self.get_installed_package_version.get_validators()
 
     def run(self, c: Connection) -> bool:
         """
@@ -100,9 +101,10 @@ class ForceInstall(Step):
         self.update = update
         self.hide = hide
 
-    def validate(self, c: Connection) -> None:
-        if not cmd.cli.is_cmd_exist(c, "apt-get"):
-            raise StepValidationError("'apt-get' is required")
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.CommandRequiredValidator('apt-get'),
+        ]
 
     def run(self, c: Connection) -> None:
         if self.version:
@@ -133,9 +135,8 @@ class Install(Step):
         self.is_package_installed = IsPackageInstalled(pkgname=self.pkgname, version=self.version)
         self.force_install = ForceInstall(pkgname=self.pkgname, version=self.version, update=self.update, hide=self.hide)
 
-    def validate(self, c: Connection) -> None:
-        self.is_package_installed.validate(c=c)
-        self.force_install.validate(c=c)
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return self.is_package_installed.get_validators() + self.force_install.get_validators()
 
     def run(self, c: Connection) -> bool:
         """
@@ -144,10 +145,10 @@ class Install(Step):
         if self.is_package_installed.run(c=c):
             if self.version:
                 if not self.hide:
-                    log(f"{self.pkgname}={self.version} already installed", host=c.host)
+                    print(f"{self.pkgname}={self.version} already installed")
             else:
                 if not self.hide:
-                    log(f"{self.pkgname} already installed", host=c.host)
+                    print(f"{self.pkgname} already installed")
             return False
 
         ForceInstall(pkgname=self.pkgname, version=self.version, update=self.update, hide=self.hide).run(c=c)
@@ -170,13 +171,18 @@ class InstallMultiple(Step):
         self.update = update
         self.hide = hide
 
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.CommandRequiredValidator('apt-get'),
+        ]
+
     def run(self, c: Connection) -> bool:
         """
         :return: `True` если хотя бы один пакет был установлен, `False` если все пакеты уже были установлен ранее
         """
         if all([IsPackageInstalled(x).run(c=c) for x in self.pkg_names]):
             if not self.hide:
-                log(f"{','.join(self.pkg_names)} already installed", host=c.host)
+                print(f"{','.join(self.pkg_names)} already installed")
             return False
 
         if self.update:
@@ -200,12 +206,14 @@ class Remove(Step):
         self.pkg_names = pkg_names
         self.hide = hide
 
-    def validate(self, c: Connection) -> None:
-        if not self.pkg_names:
-            raise StepValidationError("pkg_names is empty")
-
-        if not cmd.cli.is_cmd_exist(c, "apt-get"):
-            raise StepValidationError("'apt-get' is required")
+    def get_validators(self) -> typing.List[validators.StepValidatorBase]:
+        return [
+            validators.InlineValidator(
+                if_err_true_fn=lambda c: not self.pkg_names,
+                error_message="'pkg_names' must not be empty",
+            ),
+            validators.CommandRequiredValidator('apt-get'),
+        ]
 
     def run(self, c: Connection) -> None:
         cmd.cli.run(c, f"DEBIAN_FRONTEND=noninteractive sudo apt-get remove --auto-remove -y {' '.join(self.pkg_names)}", hide=self.hide)
