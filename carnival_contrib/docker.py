@@ -1,20 +1,23 @@
 import os
 import typing
 
+from colorama import Fore as F, Style as S  # type: ignore
+
 from carnival import Step
-from carnival import cmd
 from carnival import Connection
-from carnival.steps import validators
+from carnival.steps import validators, shortcuts
 
 from carnival_contrib import apt, systemd
 
 
 class CeInstallUbuntu(Step):
+    """
+    Установить docker на ubuntu
+    https://docs.docker.com/engine/install/ubuntu/
+    """
     def __init__(self, docker_version: typing.Optional[str] = None) -> None:
         """
-        Install docker-ce on ubuntu
-
-        :param docker_version: docker-ce version to install
+        :param docker_version: версия docker-ce
         """
         self.docker_version = docker_version
 
@@ -24,43 +27,36 @@ class CeInstallUbuntu(Step):
             validators.CommandRequiredValidator("curl"),
         ]
 
-    def run(self, c: Connection) -> bool:
-        """
-        :return: True if installed, False if was already installed
-        """
-        # https://docs.docker.com/v17.09/engine/installation/linux/docker-ce/ubuntu/
-
+    def run(self, c: Connection) -> None:
         pkgname = "docker-ce"
         if apt.IsPackageInstalled(pkgname=pkgname, version=self.docker_version).run(c=c):
-            print(f"{pkgname} already installed")
-            return False
+            print(f"{S.BRIGHT}docker-ce{S.RESET_ALL}: {F.GREEN}already installed{F.RESET}")
 
         print(f"Installing {pkgname}...")
-        cmd.cli.run(c, "sudo apt-get update")
-        cmd.cli.run(c, "sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common")
-        cmd.cli.run(c, "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -")
-        cmd.cli.run(c, 'sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"')
+        c.run("sudo apt-get update")
+        c.run("sudo apt-get install -y apt-transport-https ca-certificates curl software-properties-common")
+        c.run("curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -")
+        c.run('sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"')
 
         apt.ForceInstall(pkgname=pkgname, version=self.docker_version, update=True, hide=True).run(c=c)
-        return True
+        print(f"{S.BRIGHT}docker-ce{S.RESET_ALL}: {F.YELLOW}installed{F.RESET}")
 
 
 class ComposeInstall(Step):
+    """
+    Установить docker-compose
+    """
     def __init__(
         self,
-        docker_compose_version: str = "1.25.1",
-        docker_compose_dest: str = "/usr/local/bin/docker-compose",
-        force: bool = False,
+        version: str = "1.25.1",
+        dest: str = "/usr/bin/docker-compose",
     ) -> None:
         """
-        Install docker-compose
-
-        :param docker_compose_version: compose version
-        :param docker_compose_dest: install directory
+        :param version: версия compose
+        :param dest: папка для установки, позразумевается что она должна быт в $PATH
         """
-        self.docker_compose_version = docker_compose_version
-        self.docker_compose_dest = docker_compose_dest
-        self.force = force
+        self.version = version
+        self.dest = dest
 
     def get_validators(self) -> typing.List[validators.StepValidatorBase]:
         return [
@@ -68,18 +64,21 @@ class ComposeInstall(Step):
         ]
 
     def run(self, c: Connection) -> None:
-        from carnival.cmd import fs
+        if shortcuts.is_cmd_exist(c, "docker-compose"):
+            print(f"{S.BRIGHT}docker-compose{S.RESET_ALL}: {F.GREEN}already installed{F.RESET}")
+            return
 
-        if not fs.is_file_exists(c, self.docker_compose_dest) or self.force:
-            print("Installing docker-compose...")
-            link = f"https://github.com/docker/compose/releases/download/{self.docker_compose_version}/docker-compose-`uname -s`-`uname -m`"
-            cmd.cli.run(c, f"sudo curl -sL {link} -o {self.docker_compose_dest}")
-            cmd.cli.run(c, f"sudo chmod a+x {self.docker_compose_dest}")
-        else:
-            print("docker-compose already installed...")
+        link = f"https://github.com/docker/compose/releases/download/{self.version}/docker-compose-`uname -s`-`uname -m`"
+        c.run(f"sudo curl -sL {link} -o {self.dest}")
+        c.run(f"sudo chmod a+x {self.dest}")
+        print(f"{S.BRIGHT}docker-compose{S.RESET_ALL}: {F.GREEN}already installed{F.RESET}")
 
 
 class UploadImageFile(Step):
+    """
+    Залить с локаьного диска tar-образ docker на сервер
+    и загрузить в демон командой `docker save image -o image.tar`
+    """
     def __init__(
         self,
         docker_image_path: str,
@@ -87,13 +86,10 @@ class UploadImageFile(Step):
         rm_after_load: bool = False,
         rsync_opts: typing.Optional[typing.Dict[str, typing.Any]] = None,
     ):
-        pass
         """
-        Upload docker image file and load into docker daemon, saved with `docker save image -o image.tar`
-
-        :param docker_image_path: Docker image path
-        :param dest_dir: Destination directory
-        :param rm_after_load: Remove image after load to docker daemon
+        :param docker_image_path: tar-образ docker
+        :param dest_dir: папка куда заливать
+        :param rm_after_load: удалить образ после загрузки
         """
         if not dest_dir.endswith("/"):
             dest_dir += "/"
@@ -116,8 +112,8 @@ class UploadImageFile(Step):
         image_file_name = os.path.basename(self.docker_image_path)
         systemd.Start("docker").run(c=c)
 
-        cmd.transfer.rsync(c.host, self.docker_image_path, self.dest_dir, **self.rsync_opts)
-        cmd.cli.run(c, f"cd {self.dest_dir}; docker load -i {image_file_name}")
+        shortcuts.rsync(c.host, self.docker_image_path, self.dest_dir, **self.rsync_opts)
+        c.run(f"cd {self.dest_dir}; docker load -i {image_file_name}")
 
         if self.rm_after_load:
-            cmd.cli.run(c, f"rm -rf {self.dest_dir}{image_file_name}")
+            c.run(f"rm -rf {self.dest_dir}{image_file_name}")

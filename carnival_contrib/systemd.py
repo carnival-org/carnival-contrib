@@ -1,4 +1,4 @@
-from carnival import cmd, Step
+from carnival import Step
 from carnival import Connection
 
 
@@ -8,7 +8,7 @@ class DaemonReload(Step):
     """
 
     def run(self, c: Connection) -> None:
-        cmd.cli.run(c, "sudo systemctl --system daemon-reload")
+        c.run("sudo systemctl --system daemon-reload")
 
 
 class Start(Step):
@@ -27,7 +27,7 @@ class Start(Step):
         if self.reload_daemon:
             DaemonReload().run(c=c)
 
-        cmd.cli.run(c, f"sudo systemctl start {self.service_name}")
+        c.run(f"sudo systemctl start {self.service_name}")
 
 
 class Stop(Step):
@@ -47,7 +47,7 @@ class Stop(Step):
         if self.reload_daemon:
             DaemonReload().run(c=c)
 
-        cmd.cli.run(c, f"sudo systemctl stop {self.service_name}")
+        c.run(f"sudo systemctl stop {self.service_name}")
 
 
 class Restart(Step):
@@ -62,7 +62,7 @@ class Restart(Step):
         self.service_name = service_name
 
     def run(self, c: Connection) -> None:
-        cmd.cli.run(c, f"sudo systemctl restart {self.service_name}")
+        c.run(f"sudo systemctl restart {self.service_name}")
 
 
 class Enable(Step):
@@ -84,7 +84,7 @@ class Enable(Step):
         if self.reload_daemon:
             DaemonReload().run(c=c)
 
-        cmd.cli.run(c, f"sudo systemctl enable {self.service_name}")
+        c.run(f"sudo systemctl enable {self.service_name}")
 
         if self.start_now:
             Start(self.service_name).run(c=c)
@@ -110,7 +110,7 @@ class Disable(Step):
         if self.reload_daemon:
             DaemonReload().run(c=c)
 
-        cmd.cli.run(c, f"sudo systemctl disable {self.service_name}")
+        c.run(f"sudo systemctl disable {self.service_name}")
 
         if self.stop_now:
             Stop(self.service_name).run(c=c)

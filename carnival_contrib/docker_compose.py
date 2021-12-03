@@ -1,12 +1,12 @@
 import os
 import typing
+from itertools import chain
 
 from carnival import Connection
 from carnival import Step
-from carnival import cmd
 from carnival.steps import validators
 
-from carnival_contrib import systemd
+from carnival_contrib import systemd, transfer
 
 
 class UploadService(Step):
@@ -31,23 +31,31 @@ class UploadService(Step):
         self.template_files: typing.List[typing.Tuple[str, str]] = []
         for dest in template_files:
             if isinstance(dest, str):
-                source_file = dest
-                dest_fname = os.path.basename(source_file)
+                template_path = dest
+                dest_fname = os.path.basename(template_path)
             elif isinstance(dest, tuple):
-                source_file, dest_fname = dest
+                template_path, dest_fname = dest
             else:
                 raise ValueError(f"Cant parse template_file definition: {dest}")
 
-            self.template_files.append((source_file, dest_fname))
+            self.template_files.append((template_path, dest_fname))
 
         self.template_context = template_context
+
+        self.transfer_chain = []
+        for template_path, dest_fname in self.template_files:
+            self.transfer_chain.append(transfer.PutTemplate(
+                template_path=template_path,
+                remote_path=dest_fname,
+                context=self.template_context,
+            ))
 
     def get_name(self) -> str:
         return f"{super().get_name()}({self.app_dir})"
 
     def get_validators(self) -> typing.List[validators.StepValidatorBase]:
         return [
-            *[validators.TemplateValidator(source_file, self.template_context) for source_file, _ in self.template_files],
+            *list(chain(*[x.get_validators() for x in self.transfer_chain])),
             validators.CommandRequiredValidator('docker'),
             validators.CommandRequiredValidator('docker-compose'),
         ]
@@ -55,16 +63,12 @@ class UploadService(Step):
     def run(self, c: Connection) -> typing.Any:
         systemd.Start("docker").run(c=c)
 
-        cmd.cli.run(c, f"mkdir -p {self.app_dir}")
+        c.run(f"mkdir -p {self.app_dir}")
 
-        for source_file, dest_fname in self.template_files:
-            cmd.transfer.put_template(
-                c,
-                source_file, os.path.join(self.app_dir, dest_fname),
-                **self.template_context
-            )
+        for transfer_step in self.transfer_chain:
+            transfer_step.run(c)
 
-        cmd.cli.run(c, "docker-compose rm -f", cwd=self.app_dir, hide=True)
+        c.run("docker-compose rm -f", cwd=self.app_dir, hide=True)
 
 
 class Up(Step):
@@ -133,7 +137,7 @@ class Ps(Step):
         ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"docker-compose {self.subcommand} {self.flags}", cwd=self.app_dir)
+        c.run(f"docker-compose {self.subcommand} {self.flags}", cwd=self.app_dir)
 
 
 class Restart(Ps):
@@ -172,7 +176,7 @@ class RestartServices(Step):
         ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"docker-compose {self.subcommand} {self.services}", cwd=self.app_dir)
+        c.run(f"docker-compose {self.subcommand} {self.services}", cwd=self.app_dir)
 
 
 class Stop(Ps):
@@ -210,7 +214,7 @@ class Logs(Step):
         ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"docker-compose logs -f --tail={self.tail}", cwd=self.app_dir, hide=False)
+        c.run(f"docker-compose logs -f --tail={self.tail}", cwd=self.app_dir, hide=False)
 
 
 class LogsServices(Step):
@@ -240,4 +244,4 @@ class LogsServices(Step):
         ]
 
     def run(self, c: Connection) -> typing.Any:
-        cmd.cli.run(c, f"docker-compose logs -f --tail={self.tail} {self.services}", cwd=self.app_dir)
+        c.run(f"docker-compose logs -f --tail={self.tail} {self.services}", cwd=self.app_dir)

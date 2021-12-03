@@ -1,6 +1,8 @@
 import typing
 
-from carnival import cmd, Step
+from colorama import Style as S, Fore as F  # type: ignore
+
+from carnival import Step
 from carnival import Connection
 from carnival.steps import validators
 
@@ -20,7 +22,7 @@ class GetPackageVersions(Step):
 
     def run(self, c: Connection) -> typing.List[str]:
         versions = []
-        result = cmd.cli.run(c, f"DEBIAN_FRONTEND=noninteractive apt-cache madison {self.pkgname}", hide=True, warn=True)
+        result = c.run(f"DEBIAN_FRONTEND=noninteractive apt-cache madison {self.pkgname}", hide=True, warn=True)
         if result.ok is False:
             return []
 
@@ -49,10 +51,11 @@ class GetInstalledPackageVersion(Step):
         """
         :return: Версия пакета если установлен, `None` если пакет не установлен
         """
-        result = cmd.cli.run(c, f"DEBIAN_FRONTEND=noninteractive dpkg -l {self.pkgname}", hide=True, warn=True)
+        result = c.run(f"DEBIAN_FRONTEND=noninteractive dpkg -l {self.pkgname} | grep '{self.pkgname}'", hide=True, warn=True)
         if result.ok is False:
             return None
-        installed, pkgn, ver, arch, *desc = result.stdout.strip().split("\n")[-1].split()
+
+        installed, pkgn, ver, arch, *desc = result.stdout.strip().split("\n")[0].split()
         if installed != 'ii':
             return None
 
@@ -107,13 +110,14 @@ class ForceInstall(Step):
         ]
 
     def run(self, c: Connection) -> None:
+        pkgname = self.pkgname
         if self.version:
             pkgname = f"{self.pkgname}={self.version}"
 
         if self.update:
-            cmd.cli.run(c, "DEBIAN_FRONTEND=noninteractive sudo apt-get update", hide=self.hide)
+            c.run("DEBIAN_FRONTEND=noninteractive sudo apt-get update", hide=self.hide)
 
-        cmd.cli.run(c, f"DEBIAN_FRONTEND=noninteractive sudo apt-get install -y {pkgname}", hide=self.hide)
+        c.run(f"DEBIAN_FRONTEND=noninteractive sudo apt-get install -y {pkgname}", hide=self.hide)
 
 
 class Install(Step):
@@ -182,11 +186,11 @@ class InstallMultiple(Step):
         """
         if all([IsPackageInstalled(x).run(c=c) for x in self.pkg_names]):
             if not self.hide:
-                print(f"{','.join(self.pkg_names)} already installed")
+                print(f"{S.BRIGHT}{', '.join(self.pkg_names)}{S.RESET_ALL}: {F.GREEN}already installed{F.RESET}")
             return False
 
         if self.update:
-            cmd.cli.run(c, "DEBIAN_FRONTEND=noninteractive sudo apt-get update", hide=self.hide)
+            c.run("DEBIAN_FRONTEND=noninteractive sudo apt-get update", hide=self.hide)
 
         for pkg in self.pkg_names:
             Install(pkgname=pkg, update=False, hide=self.hide).run(c=c)
@@ -216,4 +220,4 @@ class Remove(Step):
         ]
 
     def run(self, c: Connection) -> None:
-        cmd.cli.run(c, f"DEBIAN_FRONTEND=noninteractive sudo apt-get remove --auto-remove -y {' '.join(self.pkg_names)}", hide=self.hide)
+        c.run(f"DEBIAN_FRONTEND=noninteractive sudo apt-get remove --auto-remove -y {' '.join(self.pkg_names)}", hide=self.hide)

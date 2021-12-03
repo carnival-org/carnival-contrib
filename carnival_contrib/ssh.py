@@ -1,8 +1,39 @@
-import typing
 import os
+import re
 
-from carnival import Step, cmd
+from carnival import Step
 from carnival import Connection
+
+
+def _escape_for_regex(text: str) -> str:
+    """
+    Tnx to https://stackoverflow.com/questions/280435/escaping-regex-string
+    :param text:
+    :return:
+    """
+    regex = re.escape(text)
+    # double escaping for \
+    regex = regex.replace("\\\\", "\\\\\\")
+    # triple-escaping for $ signs
+    regex = regex.replace(r"\$", r"\\\$")
+    # single quotes should not be escaped
+    regex = regex.replace(r"\'", "'")
+    return regex
+
+
+def _is_file_contains(c: Connection, filename: str, text: str, escape: bool = True) -> bool:
+    """
+    Содержит ли файл текст
+
+    :param c: Конект с хостом
+    :param filename: путь до файла
+    :param text: текст который нужно искать
+    :param escape: экранировать ли текст
+    """
+    if escape:
+        text = _escape_for_regex(text)
+    egrep_cmd = 'egrep "{}" "{}"'.format(text, filename)
+    return c.run(egrep_cmd, hide=True, warn=True).ok
 
 
 class AddAuthorizedKey(Step):
@@ -20,27 +51,14 @@ class AddAuthorizedKey(Step):
         self.keys_file = keys_file
 
     def run(self, c: Connection) -> bool:
-        cmd.cli.run(c, "mkdir -p ~/.ssh")
-        cmd.cli.run(c, "chmod 700 ~/.ssh")
-        cmd.cli.run(c, f"touch {self.keys_file}")
+        c.run("mkdir -p ~/.ssh")
+        c.run("chmod 700 ~/.ssh")
+        c.run(f"touch {self.keys_file}")
 
-        if not cmd.fs.is_file_contains(c, self.keys_file, self.ssh_key, escape=True):
-            cmd.cli.run(c, f"echo '{self.ssh_key}' >> {self.keys_file}")
+        if not _is_file_contains(c, self.keys_file, self.ssh_key, escape=True):
+            c.run(f"echo '{self.ssh_key}' >> {self.keys_file}")
             return True
         return False
-
-
-class GetAuthorizedKeys(Step):
-    """
-    Получить список авторизованных ssh-ключей сервера
-    """
-
-    def run(self, c: Connection) -> typing.List[str]:
-        if cmd.fs.is_file_exists(c, "~/.ssh/authorized_keys") is False:
-            return []
-
-        keys_file: str = cmd.cli.run(c, "cat ~/.ssh/authorized_keys", hide=True).stdout.strip()
-        return keys_file.split("\n")
 
 
 class CopyId(Step):
